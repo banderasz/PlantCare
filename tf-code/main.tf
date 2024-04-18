@@ -88,3 +88,33 @@ resource "kubernetes_deployment" "eureka_server" {
     }
   }
 }
+
+resource "google_service_account" "github-sa" {
+  account_id   = "github-sa"
+  display_name = "Service Account for github"
+}
+
+resource "google_project_iam_member" "container_admin" {
+  project = var.project_id
+  role    = "roles/container.admin"
+  member  = "serviceAccount:${google_service_account.github-sa.email}"
+}
+
+resource "google_project_iam_member" "storage_admin" {
+  project = var.project_id
+  role    = "roles/storage.admin"
+  member  = "serviceAccount:${google_service_account.github-sa.email}"
+}
+
+resource "google_project_iam_member" "cluster_viewer" {
+  project = var.project_id
+  role    = "roles/container.clusterViewer"
+  member  = "serviceAccount:${google_service_account.github-sa.email}"
+}
+
+resource "google_project_iam_member" "artifactregistry_writer" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.github-sa.email}"
+}
+
