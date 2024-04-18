@@ -1,10 +1,10 @@
-package com.example.plantcare;
+package com.example.eureka;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class PlantCareApplicationTests {
+class EurekaApplicationTests {
 
     @Test
     void contextLoads() {
