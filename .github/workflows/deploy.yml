@@ -1,7 +1,5 @@
 name: Deploy
 on:
-  pull_request:
-    types: [ opened, synchronize, reopened ]
   push:
     branches:
       - main
@@ -41,3 +39,35 @@ jobs:
           gcloud auth configure-docker
           chmod +x ./docker_deploy.sh
           ./docker_deploy.sh
+
+
+  terraform:
+    name: 'Terraform Apply'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GKE_SA_KEY }}'
+
+      - name: Extract Terraform Version
+        run: |
+          echo "TF_VERSION=$(grep 'required_version' main.tf | cut -d '"' -f 2)" >> $GITHUB_ENV
+        working-directory: "./tf-code"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init -backend-config=gcp-plantcare.backend
+        working-directory: "./tf-code"
+
+      - name: Terraform Apply
+        run: terraform apply -input=false -auto-approve -lock=true
+        working-directory: "./tf-code"

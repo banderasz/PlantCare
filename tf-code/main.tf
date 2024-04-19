@@ -89,6 +89,10 @@ resource "kubernetes_deployment" "eureka_server" {
   }
 }
 
+data "google_service_account" "terraform-sa" {
+  account_id = "sa-plantcare-tf"
+}
+
 resource "google_service_account" "github-sa" {
   account_id   = "github-sa"
   display_name = "Service Account for github"
@@ -118,3 +122,8 @@ resource "google_project_iam_member" "artifactregistry_writer" {
   member  = "serviceAccount:${google_service_account.github-sa.email}"
 }
 
+resource "google_service_account_iam_member" "github_sa_impersonates_tf-sa" {
+  service_account_id = data.google_service_account.terraform-sa.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.github-sa.email}"
+}
