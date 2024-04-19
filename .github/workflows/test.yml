@@ -1,10 +1,10 @@
-name: SonarCloud
+name: Test
 on:
   pull_request:
     types: [ opened, synchronize, reopened ]
 jobs:
-  build:
-    name: Build and analyze
+  test:
+    name: Analyze
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,3 +32,51 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=banderasz_PlantCare
+
+  terraform:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: [ test ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GKE_SA_KEY }}'
+
+      - name: Extract Terraform Version
+        run: |
+          echo "TF_VERSION=$(grep 'required_version' main.tf | cut -d '"' -f 2)" >> $GITHUB_ENV
+        working-directory: "./tf-code"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init -backend-config=gcp-plantcare.backend
+        working-directory: "./tf-code"
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color -lock=true
+        working-directory: "./tf-code"
+
+      - name: Comment PR
+        uses: actions/github-script@0.9.0
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const output = `${{ steps.plan.outputs.stdout }}\n${{ steps.plan.outputs.stderr }}`;
+            const issue_number = context.issue.number;
+            github.issues.createComment({
+              issue_number: issue_number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '### Terraform Plan\n' + '```' + output + '```'
+            });
